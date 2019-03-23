@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"golang.org/x/net/dns/dnsmessage"
+	"github.com/miekg/dns"
 
 	"golang.org/x/net/ipv4"
 )
@@ -94,7 +94,7 @@ func (s *Service) leaveIPv4Group(p *ipv4.PacketConn, ifis []net.Interface) error
 }
 
 func (s *Service) ipv4Loop(ctx context.Context, conn *ipv4.PacketConn) {
-	var msg dnsmessage.Message
+	var msg dns.Msg
 	buff := make([]byte, dnsPacketSize)
 	for {
 		select {
@@ -102,7 +102,7 @@ func (s *Service) ipv4Loop(ctx context.Context, conn *ipv4.PacketConn) {
 		default: // continue looping
 		}
 
-		n, cm, src, err := conn.ReadFrom(buff)
+		_, cm, _, err := conn.ReadFrom(buff)
 		if err != nil {
 			log.Println("[warning]", err)
 			continue
@@ -117,7 +117,17 @@ func (s *Service) ipv4Loop(ctx context.Context, conn *ipv4.PacketConn) {
 			continue
 		}
 
-		fmt.Println("Got", n, "bytes from", src)
-		fmt.Println(msg)
+		if len(msg.Question) == 0 {
+			continue
+		}
+
+		switch msg.Question[0].Qtype {
+		case dns.TypePTR:
+			fmt.Println("PTR")
+			fmt.Println(msg)
+		case dns.TypeSRV:
+			fmt.Println("SRV")
+			fmt.Println(msg)
+		}
 	}
 }
